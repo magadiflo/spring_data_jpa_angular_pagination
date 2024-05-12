@@ -137,3 +137,60 @@ public class UserServiceImpl implements UserService {
     }
 }
 ````
+
+## Capa controller
+
+Antes de implementar el controller necesitamos definir una clase que será la que unificará la información que
+devolvamos al cliente para tener simpre un mismo formato:
+
+````java
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Data
+public class HttpResponse<T> {
+
+    private String timeStamp;
+    private int statusCode;
+    private HttpStatus status;
+    private String message;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private T data;
+
+}
+````
+
+`@JsonInclude(JsonInclude.Include.NON_NULL)`, es una anotación que se coloca en una clase o en un campo de una clase
+para indicar cómo se deben manejar los valores nulos durante la serialización a JSON. En este caso,
+`JsonInclude.Include.NON_NULL` significa que los campos nulos no se incluirán en la salida JSON. Es decir, si un campo
+de un objeto es nulo, al convertir ese objeto a JSON, el campo nulo no aparecerá en el JSON resultante.
+
+Finalmente, implementamos el controlador haciendo uso de la clase genérica creada anteriormente.
+
+````java
+
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/users")
+public class UserController {
+
+    private final UserService userService;
+
+    @GetMapping
+    public ResponseEntity<HttpResponse<?>> getUsersWithPagination(@RequestParam(value = "name", defaultValue = "", required = false) String name,
+                                                                  @RequestParam(value = "page", defaultValue = "0", required = false) Integer pageNumber,
+                                                                  @RequestParam(value = "size", defaultValue = "10", required = false) Integer pageSize) {
+        Page<UserProjection> usersPage = this.userService.getUsers(name, pageNumber, pageSize);
+        HttpResponse<Page<UserProjection>> response = HttpResponse.<Page<UserProjection>>builder()
+                .timeStamp(LocalDateTime.now().toString())
+                .data(usersPage)
+                .message("Usuarios recuperados")
+                .status(HttpStatus.OK)
+                .statusCode(HttpStatus.OK.value())
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+}
+````
