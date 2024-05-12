@@ -108,3 +108,32 @@ public interface UserRepository extends PagingAndSortingRepository<User, Long> {
 }
 ````
 
+## Capa de servicio
+
+En nuestra capa de servicio tendremos únicamente el método `getUsers()` para recuperar la proyección de los
+usuarios paginados.
+
+````java
+public interface UserService {
+    Page<UserProjection> getUsers(String name, int pageNumber, int pageSize);
+}
+````
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserProjection> getUsers(String name, int pageNumber, int pageSize) {
+        log.info("Recuperando usuarios por page {} de size {}", pageNumber, pageSize);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        return this.userRepository.findByNameContaining(name, pageable);
+    }
+}
+````
