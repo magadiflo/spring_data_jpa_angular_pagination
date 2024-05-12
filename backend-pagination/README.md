@@ -194,3 +194,53 @@ public class UserController {
 
 }
 ````
+
+## Agregando configuraciones
+
+En el `application.yml` agregaremos las siguientes configuraciones:
+
+````yml
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: backend-pagination
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/db_spring_data_jpa
+    username: admin
+    password: magadiflo
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+````
+
+**DONDE**
+
+- `spring.jpa.hibernate.ddl-auto=update`, esta configuración nos permitirá crear las tablas a partir de las anotaciones
+  de `jpa/hibernate` que tiene nuestro modelo de dominio `User`.
+- `spring.jpa.defer-datasource-initialization=true`, permite aplazar la inicialización de la fuente de datos, o en
+  nuestro caso, aplazar la ejecución del archivo `data.sql` que tenemos en el directorio `/resources`. Esto ocurre
+  porque, de forma predeterminada el script `data.sql` se ejecuta antes de que hibernate se inicialice y nosotros
+  necesitamos Hibernate para crear las tablas antes de insertar los datos en ellas, al menos la primera vez que
+  ejecutamos el proyecto, dado que estamos trabajando con `ddl-auto: update`. La primera vez se creará, posteriormente
+  las tablas ya estarán creadas.
+- `spring.jpa.sql.init.mode=always`, para cualquier inicialización basada en scripts, es decir, insertar datos a través
+  de `data.sql` o crear un esquema a través de `schema.sql`, debemos establecer esta propiedad.
+
