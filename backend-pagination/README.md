@@ -1,5 +1,8 @@
 # Spring Data JPA - Pagination
 
+- [Genera datos ficticios para insertar en BD](https://mockaroo.com/)
+- [Api para obtener fotos y otros detalles](https://randomuser.me/)
+
 ---
 
 ## Dependencias
