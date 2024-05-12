@@ -244,3 +244,105 @@ logging:
 - `spring.jpa.sql.init.mode=always`, para cualquier inicialización basada en scripts, es decir, insertar datos a través
   de `data.sql` o crear un esquema a través de `schema.sql`, debemos establecer esta propiedad.
 
+## Probando paginación
+
+Realizamos una petición al nuestro endpoint para solicitar información del nombre de usuarios que tengan en el nombre
+el término `da`; solicitamos la página `1` y de tamaño `5`.
+
+````bash
+$ curl -v -G --data "name=da&page=1&size=5" http://localhost:8080/api/v1/users | jq
+>
+< HTTP/1.1 200
+< Content-Type: application/json
+<
+{
+  "timeStamp": "2024-05-12T00:04:21.869292700",
+  "statusCode": 200,
+  "status": "OK",
+  "message": "Usuarios recuperados",
+  "data": {
+    "content": [
+      {
+        "name": "Merrily Geldard",
+        "address": "583 Paget Plaza",
+        "status": "ACTIVE",
+        "phone": "997-295-0403",
+        "email": "mgeldard1g@de.vu",
+        "imageUrl": "https://randomuser.me/api/portraits/men/53.jpg"
+      },
+      {
+        "name": "Almeda Ebdin",
+        "address": "10 Menomonie Avenue",
+        "status": "ACTIVE",
+        "phone": "640-989-8930",
+        "email": "aebdin26@usatoday.com",
+        "imageUrl": "https://randomuser.me/api/portraits/women/31.jpg"
+      },
+      {
+        "name": "Daisie Tipple",
+        "address": "7102 Stone Corner Lane",
+        "status": "ACTIVE",
+        "phone": "973-203-2497",
+        "email": "dtipple2e@bing.com",
+        "imageUrl": "https://randomuser.me/api/portraits/women/84.jpg"
+      },
+      {
+        "name": "Giralda Powrie",
+        "address": "25 Thierer Circle",
+        "status": "BANNED",
+        "phone": "904-344-3695",
+        "email": "gpowrie2r@ebay.com",
+        "imageUrl": "https://randomuser.me/api/portraits/men/84.jpg"
+      }
+    ],
+    "pageable": {
+      "pageNumber": 1,
+      "pageSize": 5,
+      "sort": {
+        "empty": true,
+        "sorted": false,
+        "unsorted": true
+      },
+      "offset": 5,
+      "paged": true,
+      "unpaged": false
+    },
+    "last": true,
+    "totalPages": 2,
+    "totalElements": 9,
+    "size": 5,
+    "number": 1,
+    "sort": {
+      "empty": true,
+      "sorted": false,
+      "unsorted": true
+    },
+    "first": false,
+    "numberOfElements": 4,
+    "empty": false
+  }
+}
+````
+
+Si observamos el log mostrado en el ide de IntelliJ IDEA, veremos lo siguiente:
+
+````bash
+ INFO 10000 --- [backend-pagination] d.m.p.app.service.impl.UserServiceImpl   : Recuperando usuarios por page 1 de size 5
+DEBUG 10000 --- [backend-pagination] org.hibernate.SQL                        : 
+    select
+        u1_0.name,
+        u1_0.email,
+        u1_0.status,
+        u1_0.address,
+        u1_0.phone,
+        u1_0.image_url 
+    from
+        users u1_0 
+    where
+        u1_0.name like replace(?, '\\', '\\\\') 
+    limit
+        ?, ?
+````
+
+Vemos que la consulta que hemos construido en el repositorio está aplicándose y con él la proyección, es decir, estamos
+recuperando únicamente las columnas de la tabla `users` que le hemos dicho que recupere y no todas las columnas.
