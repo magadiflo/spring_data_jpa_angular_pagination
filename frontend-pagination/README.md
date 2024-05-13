@@ -259,3 +259,79 @@ Ojo que aquí estamos haciendo uso de los nuevos flujos de control de `Angular 1
 Hasta este punto estamos mostrando únicamente la lista que nos retorna el backend en nuestro componente de html. Más adelante implementaremos la paginación y búsqueda.
 
 ![Vista inicial](./src/assets/01.pagination-start.png)
+
+## Implementando búsqueda por nombre
+
+Para esta implementación agregaremos el html del `nav` dentro del mismo componente de `users-pagination.component.html` con la finalidad de hacer sencilla la implementación.
+
+Para este formulario usaremos el módulo de `FormsModule` que deberá ser importado en los imports del componente de typescript.
+
+Mostraré solo el html del formulario donde se ingresa el término de búsqueda:
+
+```html
+<form #searchForm="ngForm" (ngSubmit)="goToPage(searchForm.value.inputSearch.trim())" class="d-flex"
+  role="search">
+  <input type="search" name="inputSearch" ngModel class="form-control me-2" placeholder="Search"
+    aria-label="Search">
+  <button class="btn btn-outline-success" type="submit">Search</button>
+</form>
+```
+
+En el componente de typescript realizaremos la implementación del método `goToPage()`:
+
+```typescript
+@Component({
+  selector: 'app-users-pagination',
+  standalone: true,
+  imports: [AsyncPipe, JsonPipe, NgClass, FormsModule, UserStatusPipe],
+  templateUrl: './users-pagination.component.html',
+  styleUrl: './users-pagination.component.scss'
+})
+export class UsersPaginationComponent implements OnInit {
+
+  private _userService = inject(UserService);
+  private _responseSubject!: BehaviorSubject<ApiResponse<Page>>;                //<----- (1)
+
+  public userState$!: Observable<ProcessingUsers>;
+
+  ngOnInit(): void {
+    this.userState$ = this._userService.getUsers()
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject = new BehaviorSubject<ApiResponse<Page>>(resp); //<----- (2)
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADING } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+
+  public goToPage(name: string, page: number = 0): void {                       //<----- (3)
+    this.userState$ = this._userService.getUsers(name, page)
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject.next(resp);                                     //<----- (4)
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADED, appData: this._responseSubject.value } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+}
+```
+
+**DONDE:**
+- `(1)`, definimos un `BehaviorSubject<ApiResponse<Page>>` que más adelante utilizaremos para retornar el último valor que haya emitido. Importante, a diferencia de un Subject normal, un `BehaviorSubject` mantiene un estado interno que contiene el último valor emitido.
+- `(2)`, en el `ngOnInit` se crea el `BehaviorSubject` con el valor inicial devuelto por el observable `getUsers()`. Este valor será el primer valor emitido y el valor inicial que recibirán los nuevos suscriptores.
+- `(3)`, cuando se haga uso de la búsqueda de usuarios mediante el formulario y se llame al método `goToPage()`, este método también tiene el operador de rxjs `startWith`. Este operador tiene dos peculiaridades, a diferencia del valor del `startWith` definido en el `ngOnInit`, cuando se llame al método `goToPage`, el atributo `appState` tendrá el valor de `APP_LOADED` dado que en este punto los datos ya están cargados, solo se está haciendo una búsqueda. Por otro lado, el valor de `appData` deberá ser el valor que se almacenó anteriormente en el `BehaviorSubject`, para ser más exactos en la variable `_responseSubject`.
+- `(4)`, cada vez que llegue un nuevo valor del método `getUsers()`, sencillamente el BehaviorSubject `_responseSubject` deberá emitir un nuevo valor mediante su método `next()`. Posteriormente, cuando se vuelva a hacer una llamada al método `goToPage()`, el operador `startWith` usará el último valor emitido por el BehaviorSubject en esta parte del código `appData: this._responseSubject.value`. El `BehaviorSubject` retiene el último valor emitido y lo emite inmediatamente a cualquier nuevo suscriptor, incluso si el valor se emitió antes de que se suscribieran.
+
+El `BehaviorSubject` es muy útil en situaciones en las que necesitas asegurarte de que los suscriptores siempre reciban el último estado disponible, incluso si se suscriben después de que el estado haya sido actualizado. Es comúnmente utilizado en aplicaciones donde se necesita mantener un estado global que pueda ser compartido entre varios componentes o servicios.
+
+Un `Subject` es un tipo especial de observable que se comporta al mismo tiempo como `OBSERVABLE` y como `OBSERVER`, es decir no tenemos que crear el observable por un lado y el observer por el otro y luego subscribirnos, sino que directamente la subject en sí tiene todo lo que necesitamos. `BehaviorSubject`, es un tipo especial de Subject, se inicializa con un valor (si después se actualiza, ese valor debe ser del mismo tipo de valor inicial). Siempre devuelve el último valor, es decir el valor actual de la subscripción, no guarda los datos.
+
+A continuación se muestra cómo es que finalmente quedaría la implementación:
+
+![busqueda por nombre](./src/assets/02.busqueda-por-nombre.png)
