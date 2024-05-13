@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, delay } from 'rxjs';
 
 import { ApiResponse, Page } from '../interfaces/api-response.interface';
 
@@ -18,7 +18,8 @@ export class UserService {
       .append('page', page)
       .append('size', size);
 
-    return this._httpClient.get<ApiResponse<Page>>(`${this._serverUrl}/api/v1/users`, { params });
+    return this._httpClient.get<ApiResponse<Page>>(`${this._serverUrl}/api/v1/users`, { params })
+      .pipe(delay(1000));
   }
 
 }
