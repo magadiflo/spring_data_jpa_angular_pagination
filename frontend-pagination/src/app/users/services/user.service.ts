@@ -18,8 +18,8 @@ export class UserService {
       .append('page', page)
       .append('size', size);
 
-    return this._httpClient.get<ApiResponse<Page>>(`${this._serverUrl}/api/v1/users`, { params })
-      .pipe(delay(1000));
+    return this._httpClient.get<ApiResponse<Page>>(`${this._serverUrl}/api/v1/users`, { params });
+      // .pipe(delay(1000));
   }
 
 }

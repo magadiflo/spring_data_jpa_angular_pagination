@@ -1,3 +1,12 @@
 .img-small {
   width: 50px;
 }
+
+/*
+pointer-events, permite controlar si un elemento puede o no recibir
+los eventos del cursor con independencia del orden de apilación (su valor de z-index).
+*/
+.disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}

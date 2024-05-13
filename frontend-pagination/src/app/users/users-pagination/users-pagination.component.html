@@ -53,7 +53,7 @@
         <tbody class="table-group-divider">
           @for (user of state.appData!.data.content; track $index) {
           <tr>
-            <th scope="row">{{ $index + 1 }}</th>
+            <th scope="row">{{ state.appData!.data.size * state.appData!.data.number + $index + 1 }}</th>
             <td><img [src]="user.imageUrl" [alt]="user.name" class="rounded-circle img-small"></td>
             <td>{{ user.name }}</td>
             <td>{{ user.email }}</td>
@@ -64,6 +64,34 @@
           }
         </tbody>
       </table>
+      <nav aria-label="Page navigation example">
+        <ul class="pagination">
+          <li class="page-item" [ngClass]="0 == (currentPage$ | async) ? 'disabled' : ''">
+            <a class="page-link" href="#" aria-label="Previous"
+              (click)="$event.preventDefault(); goToNextOrPreviousPage('backward', searchForm.value.inputSearch.trim())">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+
+          <!-- [].constructor(state.appData!.data.totalPages), definimos un arreglo cuyo tamaño está dado por el totalPage -->
+          @for (pageNumber of [].constructor(state.appData!.data.totalPages); track $index) {
+          <li class="page-item" [ngClass]="$index == (currentPage$ | async) ? 'active' : ''">
+            <a class="page-link" href="#"
+              (click)="$event.preventDefault(); goToPage(searchForm.value.inputSearch.trim(), $index)">
+              {{ $index + 1 }}
+            </a>
+          </li>
+          }
+
+          <li class="page-item"
+            [ngClass]="(state.appData!.data.totalPages - 1) == (currentPage$ | async) ? 'disabled' : ''">
+            <a class="page-link" href="#" aria-label="Next"
+              (click)="$event.preventDefault(); goToNextOrPreviousPage('forward', searchForm.value.inputSearch.trim())">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
       } @else {
       <div class="alert alert-warning" role="alert">¡No users found!</div>
       }

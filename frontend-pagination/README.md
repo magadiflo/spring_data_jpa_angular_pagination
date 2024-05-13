@@ -335,3 +335,131 @@ Un `Subject` es un tipo especial de observable que se comporta al mismo tiempo c
 A continuación se muestra cómo es que finalmente quedaría la implementación:
 
 ![busqueda por nombre](./src/assets/02.busqueda-por-nombre.png)
+
+## Implementando paginación
+
+Vamos a definir la siguiente clase que luego usaremos en el componente de html para deshabilitar los botones.
+
+```scss
+/*
+pointer-events, permite controlar si un elemento puede o no recibir
+los eventos del cursor con independencia del orden de apilación (su valor de z-index).
+*/
+.disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+```
+
+En el componente de typescript crearemos un `BehaviorSubject` que nos ayudará a recordar la página actual en la que el usuario se encuentra:
+
+```typescript
+@Component({
+  selector: 'app-users-pagination',
+  standalone: true,
+  imports: [AsyncPipe, JsonPipe, NgClass, FormsModule, UserStatusPipe],
+  templateUrl: './users-pagination.component.html',
+  styleUrl: './users-pagination.component.scss'
+})
+export class UsersPaginationComponent implements OnInit {
+
+  private _userService = inject(UserService);
+  private _responseSubject!: BehaviorSubject<ApiResponse<Page>>;
+  private _currentPageSubject: BehaviorSubject<number> = new BehaviorSubject<number>(0);  //<---- (1)
+
+  public userState$!: Observable<ProcessingUsers>;
+  public currentPage$: Observable<number> = this._currentPageSubject.asObservable();      //<---- (2)
+
+  ngOnInit(): void {
+    this.userState$ = this._userService.getUsers()
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject = new BehaviorSubject<ApiResponse<Page>>(resp);
+          this._currentPageSubject.next(resp.data.number);                                //<---- (3)
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADING } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+
+  public goToPage(name?: string, page: number = 0): void {
+    this.userState$ = this._userService.getUsers(name, page)
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject.next(resp);
+          this._currentPageSubject.next(resp.data.number);                                //<---- (4)
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADED, appData: this._responseSubject.value } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+
+  public goToNextOrPreviousPage(direction?: string, name?: string): void {                //<---- (5)
+    this.goToPage(name, direction === 'forward' ? this._currentPageSubject.value + 1 : this._currentPageSubject.value - 1);
+  }
+}
+```
+
+**DONDE**
+- `(1)`, se define el BehaviorSubject con valor inicial de 0. Este valor representa el número de la página cuando recién se inicia la aplicación.
+- `(2)`, se crea un observable a partir del BehaviorSubject. Esta variable será usada en el componente de html.
+- `(3)` y `(4)`, emitimos el valor de la página actual, es decir, el índice.
+- `(5)`, creamos el método que permitirá avanzar o retroceder, dependiendo del botón que se presione.
+
+Finalmente, en el componente de html, implementamos los botones de la paginación y la enumeración de los elementos:
+
+```html
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">...</th>
+    </tr>
+  </thead>
+  <tbody class="table-group-divider">
+    @for (user of state.appData!.data.content; track $index) {
+    <tr>
+      <th scope="row">{{ state.appData!.data.size * state.appData!.data.number + $index + 1 }}</th>
+      <td>...</td>
+    </tr>
+    }
+  </tbody>
+</table>
+
+<nav aria-label="Page navigation example">
+  <ul class="pagination">
+    <li class="page-item" [ngClass]="0 == (currentPage$ | async) ? 'disabled' : ''">
+      <a class="page-link" href="#" aria-label="Previous"
+        (click)="$event.preventDefault(); goToNextOrPreviousPage('backward', searchForm.value.inputSearch.trim())">
+        <span aria-hidden="true">&laquo;</span>
+      </a>
+    </li>
+
+    <!-- [].constructor(state.appData!.data.totalPages), definimos un arreglo cuyo tamaño está dado por el totalPage -->
+    @for (pageNumber of [].constructor(state.appData!.data.totalPages); track $index) {
+    <li class="page-item" [ngClass]="$index == (currentPage$ | async) ? 'active' : ''">
+      <a class="page-link" href="#"
+        (click)="$event.preventDefault(); goToPage(searchForm.value.inputSearch.trim(), $index)">
+        {{ $index + 1 }}
+      </a>
+    </li>
+    }
+
+    <li class="page-item"
+      [ngClass]="(state.appData!.data.totalPages - 1) == (currentPage$ | async) ? 'disabled' : ''">
+      <a class="page-link" href="#" aria-label="Next"
+        (click)="$event.preventDefault(); goToNextOrPreviousPage('forward', searchForm.value.inputSearch.trim())">
+        <span aria-hidden="true">&raquo;</span>
+      </a>
+    </li>
+  </ul>
+</nav>
+```
+
+Finalmente, de haber implementado la paginación quedaría tal como se ve en la imagen:
+
+![paginación](./src/assets/03.paginacion.png)

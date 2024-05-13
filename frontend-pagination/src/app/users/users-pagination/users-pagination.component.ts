@@ -21,14 +21,17 @@ export class UsersPaginationComponent implements OnInit {
 
   private _userService = inject(UserService);
   private _responseSubject!: BehaviorSubject<ApiResponse<Page>>;
+  private _currentPageSubject: BehaviorSubject<number> = new BehaviorSubject<number>(0);
 
   public userState$!: Observable<ProcessingUsers>;
+  public currentPage$: Observable<number> = this._currentPageSubject.asObservable();
 
   ngOnInit(): void {
     this.userState$ = this._userService.getUsers()
       .pipe(
         map((resp: ApiResponse<Page>) => {
           this._responseSubject = new BehaviorSubject<ApiResponse<Page>>(resp);
+          this._currentPageSubject.next(resp.data.number);
 
           return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
         }),
@@ -37,16 +40,21 @@ export class UsersPaginationComponent implements OnInit {
       );
   }
 
-  public goToPage(name: string, page: number = 0): void {
+  public goToPage(name?: string, page: number = 0): void {
     this.userState$ = this._userService.getUsers(name, page)
       .pipe(
         map((resp: ApiResponse<Page>) => {
           this._responseSubject.next(resp);
+          this._currentPageSubject.next(resp.data.number);
 
           return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
         }),
         startWith({ appState: State.APP_LOADED, appData: this._responseSubject.value } as ProcessingUsers),
         catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
       );
+  }
+
+  public goToNextOrPreviousPage(direction?: string, name?: string): void {
+    this.goToPage(name, direction === 'forward' ? this._currentPageSubject.value + 1 : this._currentPageSubject.value - 1);
   }
 }
