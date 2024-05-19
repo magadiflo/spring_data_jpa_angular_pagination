@@ -463,3 +463,15 @@ Finalmente, en el componente de html, implementamos los botones de la paginació
 Finalmente, de haber implementado la paginación quedaría tal como se ve en la imagen:
 
 ![paginación](./src/assets/03.paginacion.png)
+
+## Mejorando Números de Paginación
+
+Actualmente nuestra paginación está funcionando correctamente, tenemos 100 registros en la base de datos y nuestra paginación está mostrando 10 registros por página, eso hace que los números de la paginación se establezcan desde el 1 al 10 sumándoles además los botones &laquo; y &raquo; .
+
+Ahora, qué pasa si en la base de datos agregamos 1000 registros, eso significa que tendríamos en total unos 1100 registros y la paginación estaría enumerada del 1 al 110, tal como se muestra en la imagen:
+
+
+![pagination numeric issue](./src/assets/04.pagination-numeric-issue.png)
+
+Como se observa, a medida que tengamos más registros, los números de la paginación se incrementan considerablemente, eso no se ve bien, debemos hacer algo para mejorar esta presentación.
+
