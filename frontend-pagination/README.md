@@ -468,10 +468,179 @@ Finalmente, de haber implementado la paginación quedaría tal como se ve en la 
 
 Actualmente nuestra paginación está funcionando correctamente, tenemos 100 registros en la base de datos y nuestra paginación está mostrando 10 registros por página, eso hace que los números de la paginación se establezcan desde el 1 al 10 sumándoles además los botones &laquo; y &raquo; .
 
-Ahora, qué pasa si en la base de datos agregamos 1000 registros, eso significa que tendríamos en total unos 1100 registros y la paginación estaría enumerada del 1 al 110, tal como se muestra en la imagen:
+Ahora, qué pasa si en la base de datos agregamos más registros, como resultado veríamos algo similar a la siguiente imagen:
 
 
 ![pagination numeric issue](./src/assets/04.pagination-numeric-issue.png)
 
 Como se observa, a medida que tengamos más registros, los números de la paginación se incrementan considerablemente, eso no se ve bien, debemos hacer algo para mejorar esta presentación.
 
+Para mejorar la presentación de la paginación, haremos las siguientes modificaciones en el componente de Typescript:
+
+```typescript
+@Component({
+  selector: 'app-users-pagination',
+  standalone: true,
+  imports: [AsyncPipe, JsonPipe, NgClass, FormsModule, UserStatusPipe],
+  templateUrl: './users-pagination.component.html',
+  styleUrl: './users-pagination.component.scss'
+})
+export class UsersPaginationComponent implements OnInit {
+
+  private _userService = inject(UserService);
+  private _responseSubject!: BehaviorSubject<ApiResponse<Page>>;
+  private _currentPageSubject: BehaviorSubject<number> = new BehaviorSubject<number>(0);
+
+  public userState$!: Observable<ProcessingUsers>;
+  public currentPage$: Observable<number> = this._currentPageSubject.asObservable();
+
+  // Nos ayudará a desplazarnos entre el conjunto de número de páginas
+  public currentPageNumber: number = 0;
+  // Cantidad de número de páginas a mostrar en la paginación
+  public readonly maxPagesNumberToDisplay: number = 10; 
+
+  ngOnInit(): void {
+    this.userState$ = this._userService.getUsers()
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject = new BehaviorSubject<ApiResponse<Page>>(resp);
+          this._currentPageSubject.next(resp.data.number);
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADING } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+
+  public goToPage(name?: string, page: number = 0): void {
+    this.userState$ = this._userService.getUsers(name, page)
+      .pipe(
+        map((resp: ApiResponse<Page>) => {
+          this._responseSubject.next(resp);
+          this._currentPageSubject.next(resp.data.number);
+
+          // Si la página actual es divisible entre el número de páginas a mostrar, entonces,
+          // debemos actualizar el currentPageNumber para que comience la enumeración del
+          // nuevo conjunto de páginas
+          if (resp.data.number % this.maxPagesNumberToDisplay == 0) {
+            this.currentPageNumber = resp.data.number;
+          }
+
+          return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
+        }),
+        startWith({ appState: State.APP_LOADED, appData: this._responseSubject.value } as ProcessingUsers),
+        catchError((error: HttpErrorResponse) => of({ appState: State.APP_ERROR, error } as ProcessingUsers))
+      );
+  }
+
+  public goToNextOrPreviousPage(direction?: string, name?: string): void {
+
+    // Si se da click en el botón de retroceso y la página actual es divisible entre el número
+    // de páginas a mostrar, entonces hay que retroceder desde la página actual a lo que se haya
+    // determinado en el maxPagesNumberToDisplay
+    if (direction === 'backward' && this._currentPageSubject.value % this.maxPagesNumberToDisplay == 0) {
+      this.currentPageNumber = this._currentPageSubject.value - this.maxPagesNumberToDisplay;
+    }
+
+    const page = direction === 'forward' ? this._currentPageSubject.value + 1 : this._currentPageSubject.value - 1;
+
+    this.goToPage(name, page);
+  }
+
+  // Cuando se da clic en los botones ..., permite saltar entre conjunto de páginas
+  public goToNextSetOfPages(direction?: string, name?: string) {
+
+    if (direction === 'forward') {
+      this.currentPageNumber += this.maxPagesNumberToDisplay;
+    }
+
+    if (direction === 'backward') {
+      this.currentPageNumber -= this.maxPagesNumberToDisplay;
+    }
+
+    this._currentPageSubject.next(this.currentPageNumber);
+    this.goToPage(name, this.currentPageNumber);
+  }
+}
+```
+
+Con respecto al componente de html, los únicos cambios que haremos serán en la parte de la paginación, obviamente.
+
+```html
+<div class="d-flex justify-content-between">
+  <nav aria-label="Page navigation example">
+    <ul class="pagination">
+      <li class="page-item" [ngClass]="0 == (currentPage$ | async) ? 'disabled' : ''">
+        <a class="page-link" href="#" aria-label="Previous"
+          (click)="$event.preventDefault(); goToNextOrPreviousPage('backward', searchForm.value.inputSearch.trim())">
+          <span aria-hidden="true">&laquo;</span>
+        </a>
+      </li>
+
+      @if (currentPageNumber > 1) {
+      <li class="page-item">
+        <a class="page-link" href="#"
+          (click)="$event.preventDefault(); goToNextSetOfPages('backward', searchForm.value.inputSearch.trim())">
+          ...
+        </a>
+      </li>
+      }
+
+      @for (pageNumber of [].constructor(maxPagesNumberToDisplay); track $index) {
+      @if (state.appData!.data.totalPages > currentPageNumber + $index) {
+      <li class="page-item" [ngClass]="currentPageNumber + $index == (currentPage$ | async) ? 'active' : ''">
+        <a class="page-link" href="#"
+          (click)="$event.preventDefault(); goToPage(searchForm.value.inputSearch.trim(), currentPageNumber + $index)">
+          {{ currentPageNumber + $index + 1 }}
+        </a>
+      </li>
+      }
+      }
+
+      @if ((state.appData!.data.totalPages > maxPagesNumberToDisplay) &&
+      (state.appData!.data.totalPages - maxPagesNumberToDisplay > currentPageNumber)) {
+      <li class="page-item">
+        <a class="page-link" href="#"
+          (click)="$event.preventDefault(); goToNextSetOfPages('forward', searchForm.value.inputSearch.trim())">
+          ...
+        </a>
+      </li>
+      }
+
+      <li class="page-item"
+        [ngClass]="(state.appData!.data.totalPages - 1) == (currentPage$ | async) ? 'disabled' : ''">
+        <a class="page-link" href="#" aria-label="Next"
+          (click)="$event.preventDefault(); goToNextOrPreviousPage('forward', searchForm.value.inputSearch.trim())">
+          <span aria-hidden="true">&raquo;</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <div>
+    Páginas totales:
+    <span class="total-pages">{{ state.appData!.data.totalPages }}</span>
+  </div>
+</div>
+```
+
+En los estilos agregué las siguientes clases:
+
+```scss
+.active {
+  pointer-events: none;
+}
+
+.total-pages {
+  font-size: 20px;
+  color: #0D6EFD;
+}
+```
+
+Finalmente, si ejecutamos la aplicación obtendremos el siguiente resultado:
+
+![pagination fixed 1](./src/assets/05.pagination-fixed-1.png)
+
+Para estas pruebas estuve agregando y quitándo registros en la base de datos. En esta última imagen se muestran los últimos registros:
+
+![pagination fixed 2](./src/assets/06.pagination-fixed-2.png)

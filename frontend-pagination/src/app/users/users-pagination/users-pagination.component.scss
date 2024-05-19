@@ -10,3 +10,12 @@ los eventos del cursor con independencia del orden de apilación (su valor de z-
   pointer-events: none;
   opacity: 0.6;
 }
+
+.active {
+  pointer-events: none;
+}
+
+.total-pages {
+  font-size: 20px;
+  color: #0D6EFD;
+}

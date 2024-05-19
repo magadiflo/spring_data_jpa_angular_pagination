@@ -64,34 +64,60 @@
           }
         </tbody>
       </table>
-      <nav aria-label="Page navigation example">
-        <ul class="pagination">
-          <li class="page-item" [ngClass]="0 == (currentPage$ | async) ? 'disabled' : ''">
-            <a class="page-link" href="#" aria-label="Previous"
-              (click)="$event.preventDefault(); goToNextOrPreviousPage('backward', searchForm.value.inputSearch.trim())">
-              <span aria-hidden="true">&laquo;</span>
-            </a>
-          </li>
+      <div class="d-flex justify-content-between">
+        <nav aria-label="Page navigation example">
+          <ul class="pagination">
+            <li class="page-item" [ngClass]="0 == (currentPage$ | async) ? 'disabled' : ''">
+              <a class="page-link" href="#" aria-label="Previous"
+                (click)="$event.preventDefault(); goToNextOrPreviousPage('backward', searchForm.value.inputSearch.trim())">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
 
-          <!-- [].constructor(state.appData!.data.totalPages), definimos un arreglo cuyo tamaño está dado por el totalPage -->
-          @for (pageNumber of [].constructor(state.appData!.data.totalPages); track $index) {
-          <li class="page-item" [ngClass]="$index == (currentPage$ | async) ? 'active' : ''">
-            <a class="page-link" href="#"
-              (click)="$event.preventDefault(); goToPage(searchForm.value.inputSearch.trim(), $index)">
-              {{ $index + 1 }}
-            </a>
-          </li>
-          }
+            @if (currentPageNumber > 1) {
+            <li class="page-item">
+              <a class="page-link" href="#"
+                (click)="$event.preventDefault(); goToNextSetOfPages('backward', searchForm.value.inputSearch.trim())">
+                ...
+              </a>
+            </li>
+            }
 
-          <li class="page-item"
-            [ngClass]="(state.appData!.data.totalPages - 1) == (currentPage$ | async) ? 'disabled' : ''">
-            <a class="page-link" href="#" aria-label="Next"
-              (click)="$event.preventDefault(); goToNextOrPreviousPage('forward', searchForm.value.inputSearch.trim())">
-              <span aria-hidden="true">&raquo;</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
+            @for (pageNumber of [].constructor(maxPagesNumberToDisplay); track $index) {
+            @if (state.appData!.data.totalPages > currentPageNumber + $index) {
+            <li class="page-item" [ngClass]="currentPageNumber + $index == (currentPage$ | async) ? 'active' : ''">
+              <a class="page-link" href="#"
+                (click)="$event.preventDefault(); goToPage(searchForm.value.inputSearch.trim(), currentPageNumber + $index)">
+                {{ currentPageNumber + $index + 1 }}
+              </a>
+            </li>
+            }
+            }
+
+            @if ((state.appData!.data.totalPages > maxPagesNumberToDisplay) &&
+            (state.appData!.data.totalPages - maxPagesNumberToDisplay > currentPageNumber)) {
+            <li class="page-item">
+              <a class="page-link" href="#"
+                (click)="$event.preventDefault(); goToNextSetOfPages('forward', searchForm.value.inputSearch.trim())">
+                ...
+              </a>
+            </li>
+            }
+
+            <li class="page-item"
+              [ngClass]="(state.appData!.data.totalPages - 1) == (currentPage$ | async) ? 'disabled' : ''">
+              <a class="page-link" href="#" aria-label="Next"
+                (click)="$event.preventDefault(); goToNextOrPreviousPage('forward', searchForm.value.inputSearch.trim())">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <div>
+          Páginas totales:
+          <span class="total-pages">{{ state.appData!.data.totalPages }}</span>
+        </div>
+      </div>
       } @else {
       <div class="alert alert-warning" role="alert">¡No users found!</div>
       }

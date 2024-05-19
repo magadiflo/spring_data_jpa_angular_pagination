@@ -26,6 +26,9 @@ export class UsersPaginationComponent implements OnInit {
   public userState$!: Observable<ProcessingUsers>;
   public currentPage$: Observable<number> = this._currentPageSubject.asObservable();
 
+  public currentPageNumber: number = 0;
+  public readonly maxPagesNumberToDisplay: number = 10;
+
   ngOnInit(): void {
     this.userState$ = this._userService.getUsers()
       .pipe(
@@ -47,6 +50,10 @@ export class UsersPaginationComponent implements OnInit {
           this._responseSubject.next(resp);
           this._currentPageSubject.next(resp.data.number);
 
+          if (resp.data.number % this.maxPagesNumberToDisplay == 0) {
+            this.currentPageNumber = resp.data.number;
+          }
+
           return { appState: State.APP_LOADED, appData: resp } as ProcessingUsers;
         }),
         startWith({ appState: State.APP_LOADED, appData: this._responseSubject.value } as ProcessingUsers),
@@ -55,6 +62,27 @@ export class UsersPaginationComponent implements OnInit {
   }
 
   public goToNextOrPreviousPage(direction?: string, name?: string): void {
-    this.goToPage(name, direction === 'forward' ? this._currentPageSubject.value + 1 : this._currentPageSubject.value - 1);
+
+    if (direction === 'backward' && this._currentPageSubject.value % this.maxPagesNumberToDisplay == 0) {
+      this.currentPageNumber = this._currentPageSubject.value - this.maxPagesNumberToDisplay;
+    }
+
+    const page = direction === 'forward' ? this._currentPageSubject.value + 1 : this._currentPageSubject.value - 1;
+
+    this.goToPage(name, page);
+  }
+
+  public goToNextSetOfPages(direction?: string, name?: string) {
+
+    if (direction === 'forward') {
+      this.currentPageNumber += this.maxPagesNumberToDisplay;
+    }
+
+    if (direction === 'backward') {
+      this.currentPageNumber -= this.maxPagesNumberToDisplay;
+    }
+
+    this._currentPageSubject.next(this.currentPageNumber);
+    this.goToPage(name, this.currentPageNumber);
   }
 }
